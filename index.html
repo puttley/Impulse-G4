@@ -775,15 +775,15 @@
 
     <!-- Navigation Tabs -->
     <div class="tabs">
-      <button class="tab" onclick="showTab('setup')">Event Setup</button>
+      <button class="tab active" onclick="showTab('setup')">Event Setup</button>
       <button class="tab" onclick="showTab('cars')">Car Registration</button>
-      <button class="tab active" onclick="showTab('trials')">Time Trials</button>
+      <button class="tab" onclick="showTab('trials')">Time Trials</button>
       <button class="tab" onclick="showTab('brackets')">Brackets</button>
       <button class="tab" onclick="showTab('leaderboards')">Leaderboards & Export</button>
     </div>
 
     <!-- Tab: Event Setup -->
-    <div id="setupTab" class="tab-content">
+    <div id="setupTab" class="tab-content active">
       <div class="card">
         <h2>Event Details</h2>
         
@@ -923,7 +923,7 @@
     </div>
 
     <!-- Tab: Time Trials -->
-    <div id="trialsTab" class="tab-content active">
+    <div id="trialsTab" class="tab-content">
       <!-- Lane Assignment -->
       <div class="card">
         <h2>Lane Assignment</h2>
