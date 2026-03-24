@@ -288,6 +288,39 @@
       border-bottom: 1px solid var(--edge);
     }
 
+    .column-toggle {
+      font-size: 0.85rem;
+      opacity: 0.4;
+      margin-left: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .column-toggle:hover {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+
+    /* Hide both headers and data cells when column is hidden */
+    th[data-column].hidden,
+    td[data-column].hidden {
+      display: none;
+    }
+
+    .column-toggle {
+      font-size: 0.85rem;
+      opacity: 0.4;
+      margin-left: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .column-toggle:hover {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+
+
     tbody tr:hover {
       background: rgba(91, 158, 255, 0.05);
     }
@@ -821,6 +854,9 @@
           <button class="btn btn-success" onclick="saveEventDetails()">
             ✓ Save Event Details
           </button>
+          <button class="btn btn-danger" onclick="startNewEvent()">
+            🆕 New Event
+          </button>
           <button class="btn btn-primary" onclick="showLoadEventModal()">
             📂 Load Previous Event
           </button>
@@ -993,25 +1029,44 @@
       <div class="card">
         <div class="flex-between">
           <h2>Time Trial Results</h2>
-          <div class="flex-center">
+          <div class="flex-center" style="gap: 12px;">
             <select id="filterSelect" class="input" onchange="filterResults()" style="width: auto;">
               <option value="all">Show All</option>
               <option value="qualified">Qualified Only</option>
               <option value="dq">DQ'd Only</option>
+              <option value="ms">Middle School Only</option>
+              <option value="hs">High School Only</option>
             </select>
+            <button class="btn btn-secondary btn-small" onclick="showAllColumns()" title="Restore all hidden columns">
+              👁️ Show All Columns
+            </button>
           </div>
         </div>
 
         <table id="resultsTable">
           <thead>
             <tr>
-              <th class="sortable" onclick="sortResults('number')">Car #</th>
-              <th class="sortable" onclick="sortResults('driver')">Driver</th>
-              <th class="sortable" onclick="sortResults('division')">Division</th>
-              <th class="sortable" onclick="sortResults('finish')">Finish (s)</th>
-              <th class="sortable" onclick="sortResults('reaction')">Reaction (s)</th>
-              <th class="sortable" onclick="sortResults('speed')">Speed (mph)</th>
-              <th style="text-align: center;">DQ</th>
+              <th class="sortable" onclick="sortResults('number')" data-column="number">
+                Car # <span class="column-toggle" onclick="toggleColumn('number', event)" title="Hide column">👁️</span>
+              </th>
+              <th class="sortable" onclick="sortResults('driver')" data-column="driver">
+                Driver <span class="column-toggle" onclick="toggleColumn('driver', event)" title="Hide column">👁️</span>
+              </th>
+              <th class="sortable" onclick="sortResults('division')" data-column="division">
+                Division <span class="column-toggle" onclick="toggleColumn('division', event)" title="Hide column">👁️</span>
+              </th>
+              <th class="sortable" onclick="sortResults('finish')" data-column="finish">
+                Finish (s) <span class="column-toggle" onclick="toggleColumn('finish', event)" title="Hide column">👁️</span>
+              </th>
+              <th class="sortable" onclick="sortResults('reaction')" data-column="reaction">
+                Reaction (s) <span class="column-toggle" onclick="toggleColumn('reaction', event)" title="Hide column">👁️</span>
+              </th>
+              <th class="sortable" onclick="sortResults('speed')" data-column="speed">
+                Speed (mph) <span class="column-toggle" onclick="toggleColumn('speed', event)" title="Hide column">👁️</span>
+              </th>
+              <th style="text-align: center;" data-column="dq">
+                DQ <span class="column-toggle" onclick="toggleColumn('dq', event)" title="Hide column">👁️</span>
+              </th>
             </tr>
           </thead>
           <tbody id="resultsTableBody">
@@ -1708,23 +1763,33 @@
     }
 
     function saveTimeTocar(carId, laneData) {
+      console.log('Saving time for car ID:', carId, 'Type:', typeof carId);
       const car = findCarById(carId);
-      if (!car) return;
+      if (!car) {
+        console.error('Car not found! ID:', carId);
+        console.log('MS Cars:', msCars.map(c => ({id: c.id, type: typeof c.id})));
+        console.log('HS Cars:', hsCars.map(c => ({id: c.id, type: typeof c.id})));
+        return;
+      }
 
+      console.log('Found car:', car.number, car.driver);
       car.timeTrialResult = {
         finish: laneData.dnf ? null : laneData.finish_time,
         reaction: laneData.dnf ? null : laneData.reaction_time,
         dnf: laneData.dnf,
         timestamp: Date.now()
       };
+      console.log('Time saved successfully');
     }
 
     function findCarById(id) {
       if (!id) return null;
+      // Convert to string for comparison (IDs might be stored as strings or numbers)
+      const idStr = String(id);
       // Search in both divisions
-      let car = msCars.find(c => c.id === id);
+      let car = msCars.find(c => String(c.id) === idStr);
       if (car) return car;
-      return hsCars.find(c => c.id === id);
+      return hsCars.find(c => String(c.id) === idStr);
     }
 
     // ==================== Tab Navigation ====================
@@ -1841,6 +1906,51 @@
       const alert = document.getElementById('eventSavedAlert');
       alert.classList.remove('hidden');
       setTimeout(() => alert.classList.add('hidden'), 3000);
+    }
+
+    async function startNewEvent() {
+      const confirmed = await showConfirmModal(
+        'Start New Event?',
+        'This will clear all current event data including cars, time trials, and brackets. Make sure you\'ve saved or exported your current event if needed!\n\nThis action cannot be undone.',
+        'Start New Event',
+        true  // danger = true (red button)
+      );
+      
+      if (!confirmed) return;
+      
+      // Clear all data
+      document.getElementById('eventName').value = '';
+      document.getElementById('eventDate').value = '';
+      document.getElementById('eventLocation').value = '';
+      document.getElementById('distanceFeet').value = 65;
+      document.getElementById('distanceInches').value = 6;
+      updateTotalDistance();
+      
+      msCars = [];
+      hsCars = [];
+      renderCars('MS');
+      renderCars('HS');
+      
+      msBracket = null;
+      hsBracket = null;
+      document.getElementById('msBracketDisplay').classList.add('hidden');
+      document.getElementById('hsBracketDisplay').classList.add('hidden');
+      
+      // Clear time trials display
+      renderResults();
+      
+      // Update lane selects and qualifier counts
+      updateLaneSelects();
+      updateQualifierInfo('MS');
+      updateQualifierInfo('HS');
+      
+      // Clear leaderboards
+      renderLeaderboards();
+      
+      // Clear storage
+      localStorage.removeItem('g4RaceData');
+      
+      showInfoModal('New Event Started', 'All data has been cleared. You can now set up your new event!');
     }
 
     document.getElementById('distanceFeet').addEventListener('input', updateTotalDistance);
@@ -1961,9 +2071,10 @@
       lane1Select.innerHTML = '<option value="">-- Select Car --</option>';
       lane2Select.innerHTML = '<option value="">-- Select Car --</option>';
 
-      allCars.forEach((car, idx) => {
+      allCars.forEach((car) => {
         const division = car.division;
-        const value = `${division}-${msCars.includes(car) ? msCars.indexOf(car) : hsCars.indexOf(car)}`;
+        // Use the actual car.id instead of array index
+        const value = car.id;
         const option = `<option value="${value}">${car.number} - ${car.driver} (${division})</option>`;
         lane1Select.innerHTML += option;
         lane2Select.innerHTML += option;
@@ -1992,6 +2103,7 @@
     // ==================== Results Table ====================
     let currentSort = { column: 'finish', direction: 'asc' };
     let currentFilter = 'all';
+    let hiddenColumns = new Set(); // Track which columns are hidden
 
     function calculateSpeed(finishTime) {
       const feet = parseInt(document.getElementById('distanceFeet').value) || 65;
@@ -2015,6 +2127,10 @@
         filtered = carsWithTimes.filter(car => !car.dq);
       } else if (currentFilter === 'dq') {
         filtered = carsWithTimes.filter(car => car.dq);
+      } else if (currentFilter === 'ms') {
+        filtered = carsWithTimes.filter(car => car.division === 'MS');
+      } else if (currentFilter === 'hs') {
+        filtered = carsWithTimes.filter(car => car.division === 'HS');
       }
 
       // Sort
@@ -2073,13 +2189,13 @@
         
         return `
           <tr class="${isTopQualifier ? 'top-qualifier' : ''} ${car.dq ? 'dq' : ''}">
-            <td><strong>${car.number}</strong></td>
-            <td>${car.driver}</td>
-            <td><span class="badge ${car.division === 'MS' ? 'badge-success' : 'badge-warning'}">${car.division}</span></td>
-            <td>${result.dnf ? 'DNF' : result.finish.toFixed(3)}</td>
-            <td>${result.dnf ? '---' : result.reaction.toFixed(3)}</td>
-            <td>${speed ? speed.toFixed(2) : '---'}</td>
-            <td style="text-align: center;">${car.dq ? '✓' : ''}</td>
+            <td data-column="number" class="${hiddenColumns.has('number') ? 'hidden' : ''}"><strong>${car.number}</strong></td>
+            <td data-column="driver" class="${hiddenColumns.has('driver') ? 'hidden' : ''}">${car.driver}</td>
+            <td data-column="division" class="${hiddenColumns.has('division') ? 'hidden' : ''}"><span class="badge ${car.division === 'MS' ? 'badge-success' : 'badge-warning'}">${car.division}</span></td>
+            <td data-column="finish" class="${hiddenColumns.has('finish') ? 'hidden' : ''}">${result.dnf ? 'DNF' : result.finish.toFixed(3)}</td>
+            <td data-column="reaction" class="${hiddenColumns.has('reaction') ? 'hidden' : ''}">${result.dnf ? '---' : result.reaction.toFixed(3)}</td>
+            <td data-column="speed" class="${hiddenColumns.has('speed') ? 'hidden' : ''}">${speed ? speed.toFixed(2) : '---'}</td>
+            <td data-column="dq" style="text-align: center;" class="${hiddenColumns.has('dq') ? 'hidden' : ''}">${car.dq ? '✓' : ''}</td>
           </tr>
         `;
       }).join('');
@@ -2109,6 +2225,50 @@
     function filterResults() {
       currentFilter = document.getElementById('filterSelect').value;
       renderResults();
+    }
+
+    function showAllColumns() {
+      // Clear hidden columns
+      hiddenColumns.clear();
+      
+      // Remove hidden class from all headers
+      document.querySelectorAll('th[data-column].hidden').forEach(th => {
+        th.classList.remove('hidden');
+      });
+      
+      // Re-render to show all td cells and brackets
+      renderResults();
+      
+      // Re-render brackets if they exist (to show driver names)
+      if (msBracket) renderBracket('MS');
+      if (hsBracket) renderBracket('HS');
+    }
+
+    function toggleColumn(columnName, event) {
+      // Stop event from triggering sort
+      event.stopPropagation();
+      
+      if (hiddenColumns.has(columnName)) {
+        hiddenColumns.delete(columnName);
+      } else {
+        hiddenColumns.add(columnName);
+      }
+      
+      // Update header visibility
+      const th = document.querySelector(`th[data-column="${columnName}"]`);
+      
+      if (hiddenColumns.has(columnName)) {
+        th.classList.add('hidden');
+      } else {
+        th.classList.remove('hidden');
+      }
+      
+      // Re-render to update td visibility and brackets
+      renderResults();
+      
+      // Re-render brackets if they exist (to hide/show driver names)
+      if (msBracket) renderBracket('MS');
+      if (hsBracket) renderBracket('HS');
     }
 
     async function deleteResult(carId, division) {
@@ -2601,11 +2761,14 @@
         return `<div class="bracket-slot tbd"><span>TBD</span></div>`;
       }
       
+      // Check if driver column is hidden in time trials
+      const showDriverName = !hiddenColumns.has('driver');
+      
       if (isBye) {
         return `<div class="bracket-slot bye">
           <div class="bracket-player">
             <span class="bracket-car-number">${participant.number}</span>
-            <span class="bracket-driver">${participant.driver}</span>
+            ${showDriverName ? `<span class="bracket-driver">${participant.driver}</span>` : ''}
           </div>
           <span style="font-size: 0.75rem; color: var(--muted);">Bye</span>
         </div>`;
@@ -2618,7 +2781,9 @@
       let html = `<div class="${slotClass}">`;
       html += `<div class="bracket-player">`;
       html += `<span class="bracket-car-number">${participant.number}</span>`;
-      html += `<span class="bracket-driver">${participant.driver}</span>`;
+      if (showDriverName) {
+        html += `<span class="bracket-driver">${participant.driver}</span>`;
+      }
       html += `</div>`;
       
       if (time !== null) {
@@ -2736,8 +2901,17 @@
       
       title.textContent = `${roundName} - Match ${currentBracketRace.matchIdx + 1}`;
       
-      document.getElementById('bracket_lane1_car').textContent = match.participant1.number + ' - ' + match.participant1.driver;
-      document.getElementById('bracket_lane2_car').textContent = match.participant2.number + ' - ' + match.participant2.driver;
+      // Check if driver column is hidden
+      const showDriverName = !hiddenColumns.has('driver');
+      
+      if (showDriverName) {
+        document.getElementById('bracket_lane1_car').textContent = match.participant1.number + ' - ' + match.participant1.driver;
+        document.getElementById('bracket_lane2_car').textContent = match.participant2.number + ' - ' + match.participant2.driver;
+      } else {
+        // Show only car numbers
+        document.getElementById('bracket_lane1_car').textContent = 'Car ' + match.participant1.number;
+        document.getElementById('bracket_lane2_car').textContent = 'Car ' + match.participant2.number;
+      }
       
       document.getElementById('bracket_lane1_finish').textContent = raceData.lane1.finish_time.toFixed(3);
       document.getElementById('bracket_lane2_finish').textContent = raceData.lane2.finish_time.toFixed(3);
