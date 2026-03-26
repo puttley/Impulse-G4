@@ -854,56 +854,88 @@
     <!-- Tab: Event Setup -->
     <div id="setupTab" class="tab-content active">
       <div class="card">
-        <h2>Event Details</h2>
+        <h2>Event Management</h2>
         
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="eventName">Event Name *</label>
-            <input type="text" id="eventName" class="input" placeholder="Spring Championship 2026">
+        <!-- Initial State: No Event -->
+        <div id="noEventState" class="hidden">
+          <div class="alert alert-info" style="margin-bottom: 20px;">
+            <strong>📋 No Active Event</strong><br>
+            Create a new event or load a previous event to get started.
           </div>
           
-          <div class="form-group">
-            <label for="eventDate">Date</label>
-            <input type="date" id="eventDate" class="input">
-          </div>
-          
-          <div class="form-group">
-            <label for="eventLocation">Location</label>
-            <input type="text" id="eventLocation" class="input" placeholder="Pittsburg, KS">
+          <div class="btn-group">
+            <button class="btn btn-success" onclick="createNewEvent()">
+              🆕 Create New Event
+            </button>
+            <button class="btn btn-primary" onclick="showLoadEventModal()">
+              📂 Load Previous Event
+            </button>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Race Distance *</label>
-          <div class="input-group">
-            <input type="number" id="distanceFeet" class="input input-small" value="65" min="0" max="999">
-            <span>feet</span>
-            <input type="number" id="distanceInches" class="input input-small" value="6" min="0" max="11" step="1">
-            <span>inches</span>
-            <span class="subtitle" style="margin-left: 16px;">
-              = <strong id="totalDistance">65.5</strong> feet
-            </span>
+        <!-- Active Event State -->
+        <div id="activeEventState" class="hidden">
+          <!-- Event Code Display -->
+          <div id="eventCodeDisplay" class="card" style="background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(230, 57, 70, 0.1) 100%); border: 2px solid var(--accent); margin-bottom: 20px;">
+            <div style="text-align: center;">
+              <div style="font-size: 0.85rem; color: var(--muted); margin-bottom: 8px;">📋 Current Event Code</div>
+              <div style="font-size: 2rem; font-weight: bold; color: var(--accent); letter-spacing: 3px; font-family: 'Courier New', monospace;" id="displayedEventCode">------</div>
+              <div style="font-size: 0.85rem; color: var(--muted); margin-top: 8px;">Share this code for live results at: <strong>www.impulse-g4.com/live</strong></div>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom: 16px;">Event Details</h3>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="eventName">Event Name *</label>
+              <input type="text" id="eventName" class="input" placeholder="Spring Championship 2026">
+            </div>
+            
+            <div class="form-group">
+              <label for="eventDate">Date</label>
+              <input type="date" id="eventDate" class="input">
+            </div>
+            
+            <div class="form-group">
+              <label for="eventLocation">Location</label>
+              <input type="text" id="eventLocation" class="input" placeholder="Pittsburg, KS">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Race Distance *</label>
+            <div class="input-group">
+              <input type="number" id="distanceFeet" class="input input-small" value="65" min="0" max="999">
+              <span>feet</span>
+              <input type="number" id="distanceInches" class="input input-small" value="6" min="0" max="11" step="1">
+              <span>inches</span>
+              <span class="subtitle" style="margin-left: 16px;">
+                = <strong id="totalDistance">65.5</strong> feet
+              </span>
+            </div>
+          </div>
+
+          <div class="btn-group" style="margin-top: 20px;">
+            <button class="btn btn-success" onclick="saveEventChanges()">
+              💾 Save Changes
+            </button>
+            <button class="btn btn-danger" onclick="confirmNewEvent()">
+              🆕 New Event
+            </button>
+            <button class="btn btn-primary" onclick="showLoadEventModal()">
+              📂 Load Previous Event
+            </button>
+            <button class="btn btn-secondary" onclick="exportEventToFile()">
+              💾 Export Event to File
+            </button>
+            <button class="btn btn-secondary" onclick="document.getElementById('importEventFile').click()">
+              📥 Import Event from File
+            </button>
+            <input type="file" id="importEventFile" accept=".json" style="display: none;" onchange="importEventFromFile(event)">
           </div>
         </div>
-
-        <div class="btn-group" style="margin-top: 20px;">
-          <button class="btn btn-success" onclick="saveEventDetails()">
-            ✓ Save Event Details
-          </button>
-          <button class="btn btn-danger" onclick="startNewEvent()">
-            🆕 New Event
-          </button>
-          <button class="btn btn-primary" onclick="showLoadEventModal()">
-            📂 Load Previous Event
-          </button>
-          <button class="btn btn-secondary" onclick="exportEventToFile()">
-            💾 Export Event to File
-          </button>
-          <button class="btn btn-secondary" onclick="document.getElementById('importEventFile').click()">
-            📥 Import Event from File
-          </button>
-          <input type="file" id="importEventFile" accept=".json" style="display: none;" onchange="importEventFromFile(event)">
-        </div>
+        <!-- End Active Event State -->
 
         <div id="eventSavedAlert" class="alert alert-success hidden">
           <strong>✓ Saved!</strong> Event details have been saved.
@@ -1992,6 +2024,9 @@
       if (savedEventCode) {
         currentEventCode = savedEventCode;
       }
+      
+      // Set initial event state UI
+      checkEventState();
     }
 
     // ==================== Event Details ====================
@@ -2002,21 +2037,71 @@
       document.getElementById('totalDistance').textContent = total.toFixed(2);
     }
 
-    function saveEventDetails() {
+    // Create new event
+    function createNewEvent() {
+      // Generate new event code
+      currentEventCode = generateEventCode();
+      localStorage.setItem('currentEventCode', currentEventCode);
+      
+      // Create event stub in Firebase immediately
+      createEventInFirebase();
+      
+      // Show active event UI
+      showActiveEventState();
+      
+      // Show success message
+      showInfoModal('Event Created!', `Your event code is: ${currentEventCode}\n\nShare this code with participants for live results at www.impulse-g4.com/live\n\nNow enter your event details below.`);
+    }
+
+    // Save changes to existing event
+    function saveEventChanges() {
       saveToStorage();
-      saveEventToArchive(); // Also save to archive for "Load Previous Event"
+      saveEventToArchive();
       
-      // Generate event code if this is a new event (no code yet)
-      if (!currentEventCode) {
-        currentEventCode = generateEventCode();
-        localStorage.setItem('currentEventCode', currentEventCode);
-        
-        // Create event in Firebase
-        createEventInFirebase();
+      // Update Firebase with current data
+      createEventInFirebase(); // Updates existing event
+      
+      showInfoModal('Changes Saved!', 'Event details have been updated.');
+    }
+
+    // Confirm before creating new event (data loss warning)
+    async function confirmNewEvent() {
+      const confirmed = await showConfirmModal(
+        'Create New Event?',
+        'This will start a completely new event with a new event code. The current event code will stop working for live results.\n\nMake sure you\'ve saved or exported your current event if needed!\n\nContinue?',
+        'Create New Event',
+        true
+      );
+      
+      if (!confirmed) return;
+      
+      // Clear everything and start fresh
+      await startNewEvent();
+      
+      // Then create new event
+      createNewEvent();
+    }
+
+    // Show active event state UI
+    function showActiveEventState() {
+      document.getElementById('noEventState').classList.add('hidden');
+      document.getElementById('activeEventState').classList.remove('hidden');
+      document.getElementById('displayedEventCode').textContent = currentEventCode;
+    }
+
+    // Show no event state UI
+    function showNoEventState() {
+      document.getElementById('noEventState').classList.remove('hidden');
+      document.getElementById('activeEventState').classList.add('hidden');
+    }
+
+    // Check event state on page load
+    function checkEventState() {
+      if (currentEventCode) {
+        showActiveEventState();
+      } else {
+        showNoEventState();
       }
-      
-      // Show success message with event code
-      showEventCodeModal(currentEventCode);
     }
     
     function createEventInFirebase() {
@@ -2063,15 +2148,6 @@
     }
 
     async function startNewEvent() {
-      const confirmed = await showConfirmModal(
-        'Start New Event?',
-        'This will clear all current event data including cars, time trials, and brackets. Make sure you\'ve saved or exported your current event if needed!\n\nThis action cannot be undone.',
-        'Start New Event',
-        true  // danger = true (red button)
-      );
-      
-      if (!confirmed) return;
-      
       // Clear all data
       document.getElementById('eventName').value = '';
       document.getElementById('eventDate').value = '';
@@ -2108,7 +2184,8 @@
       // Clear current event code
       currentEventCode = null;
       
-      showInfoModal('New Event Started', 'All data has been cleared. You can now set up your new event!');
+      // Show no event state
+      showNoEventState();
     }
 
     document.getElementById('distanceFeet').addEventListener('input', updateTotalDistance);
@@ -4040,6 +4117,7 @@
           MS: msBracket,
           HS: hsBracket
         },
+        eventCode: currentEventCode, // Save event code
         savedAt: Date.now()
       };
       
@@ -4128,10 +4206,18 @@
       updateQualifierInfo('HS');
       renderLeaderboards();
       
+      // Restore event code if it exists
+      if (evt.eventCode) {
+        currentEventCode = evt.eventCode;
+        localStorage.setItem('currentEventCode', currentEventCode);
+        showActiveEventState();
+      }
+      
       saveToStorage(); // Save as current
       closeLoadEventModal();
       
-      showInfoModal('Event Loaded', `Loaded: ${evt.event.name}`);
+      const codeMsg = evt.eventCode ? `\n\nEvent Code: ${evt.eventCode}` : '';
+      showInfoModal('Event Loaded', `Loaded: ${evt.event.name}${codeMsg}`);
     }
 
     function exportEventToFile() {
