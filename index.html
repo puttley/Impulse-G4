@@ -388,6 +388,38 @@
       color: var(--muted);
     }
 
+    .race-status {
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .race-status.waiting {
+      background: rgba(42, 61, 90, 0.5);
+      border: 2px solid var(--edge-light);
+      color: var(--muted);
+    }
+
+    .race-status.ready {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+      border: 2px solid var(--ok);
+      color: var(--ok);
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+      }
+      50% {
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+      }
+    }
+
     .alert-success {
       background: rgba(16, 185, 129, 0.1);
       border: 1px solid var(--ok);
@@ -770,6 +802,10 @@
       margin-top: 8px;
     }
   </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
   <div class="container">
@@ -963,30 +999,30 @@
       <!-- Lane Assignment -->
       <div class="card">
         <h2>Lane Assignment</h2>
-        <p class="subtitle" style="margin-bottom: 20px;">Select cars for each lane, then run the race</p>
 
         <div class="form-grid">
           <div class="form-group">
             <label for="lane1Select">Lane 1</label>
-            <select id="lane1Select" class="input">
+            <select id="lane1Select" class="input" onchange="updateRaceStatus()">
               <option value="">-- Select Car --</option>
             </select>
           </div>
 
           <div class="form-group">
             <label for="lane2Select">Lane 2</label>
-            <select id="lane2Select" class="input">
+            <select id="lane2Select" class="input" onchange="updateRaceStatus()">
               <option value="">-- Select Car --</option>
             </select>
           </div>
         </div>
 
-        <div id="timeTrialBLEWarning" class="alert alert-warning hidden" style="margin-top: 16px;">
-          <strong>⚠️ BLE Not Connected!</strong> Connect to the G4 Race Timer at the top of the page to receive race results automatically.
+        <!-- Race Status Message -->
+        <div id="raceStatus" class="race-status waiting">
+          ⏳ Select cars for each lane
         </div>
 
-        <div class="alert alert-info" id="timeTrialReadyInfo">
-          <strong>Ready to race?</strong> Select cars above, then run the race on your timer. Results will appear automatically via Bluetooth.
+        <div id="timeTrialBLEWarning" class="alert alert-warning hidden" style="margin-top: 16px;">
+          <strong>⚠️ BLE Not Connected!</strong> Connect to the G4 Race Timer at the top of the page to receive race results automatically.
         </div>
       </div>
 
@@ -1600,9 +1636,25 @@
     const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
     const CHAR_RACE_RESULT = '12345678-1234-5678-1234-56789abcdef1';
 
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDxm1xWqFRvrix5YoQpfrkXMnvGn_FxsyI",
+      authDomain: "impulse-g4-live.firebaseapp.com",
+      databaseURL: "https://impulse-g4-live-default-rtdb.firebaseio.com",
+      projectId: "impulse-g4-live",
+      storageBucket: "impulse-g4-live.firebasestorage.app",
+      messagingSenderId: "940597831255",
+      appId: "1:940597831255:web:ec384f94b9c7f9efa76512"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
     let device = null;
     let raceResultChar = null;
     let pendingRaceResult = null;
+    let currentEventCode = null; // Store current event code
 
     async function handleConnect() {
       const connectBtn = document.getElementById('connectBtn');
@@ -1739,8 +1791,14 @@
       document.getElementById('raceResultPanel').classList.add('hidden');
       pendingRaceResult = null;
 
+      // Update race status message
+      updateRaceStatus();
+
       renderResults();
       saveToStorage();
+      
+      // Note: Individual results are synced to Firebase via syncResultToFirebase() 
+      // called in saveTimeTocar()
       
       // Update bracket qualifier counts and leaderboards
       updateQualifierInfo('MS');
@@ -1780,6 +1838,44 @@
         timestamp: Date.now()
       };
       console.log('Time saved successfully');
+      
+      // Sync to Firebase if event code exists
+      if (currentEventCode) {
+        syncResultToFirebase(car);
+      }
+    }
+    
+    function syncResultToFirebase(car) {
+      if (!currentEventCode || !car.timeTrialResult) return;
+      
+      // Check if driver column is hidden (for privacy)
+      const hideDriverName = hiddenColumns.has('driver');
+      
+      // Calculate speed
+      const speed = calculateSpeed(car.timeTrialResult.finish);
+      
+      const resultData = {
+        carId: car.id,
+        number: car.number,
+        driver: hideDriverName ? '' : car.driver, // Respect privacy setting
+        division: car.division,
+        finish: car.timeTrialResult.finish,
+        reaction: car.timeTrialResult.reaction,
+        speed: speed,
+        dnf: car.timeTrialResult.dnf,
+        dq: car.dq || false,
+        timestamp: car.timeTrialResult.timestamp
+      };
+      
+      // Save to Firebase under: events/{eventCode}/timeTrials/{division}/{carId}
+      database.ref(`events/${currentEventCode}/timeTrials/${car.division}/${car.id}`)
+        .set(resultData)
+        .then(() => {
+          console.log('Result synced to Firebase for car', car.number);
+        })
+        .catch((error) => {
+          console.error('Firebase sync error:', error);
+        });
     }
 
     function findCarById(id) {
@@ -1890,6 +1986,12 @@
           if (hsBracket) renderBracket('HS');
         }
       }
+      
+      // Load event code
+      const savedEventCode = localStorage.getItem('currentEventCode');
+      if (savedEventCode) {
+        currentEventCode = savedEventCode;
+      }
     }
 
     // ==================== Event Details ====================
@@ -1903,9 +2005,61 @@
     function saveEventDetails() {
       saveToStorage();
       saveEventToArchive(); // Also save to archive for "Load Previous Event"
-      const alert = document.getElementById('eventSavedAlert');
-      alert.classList.remove('hidden');
-      setTimeout(() => alert.classList.add('hidden'), 3000);
+      
+      // Generate event code if this is a new event (no code yet)
+      if (!currentEventCode) {
+        currentEventCode = generateEventCode();
+        localStorage.setItem('currentEventCode', currentEventCode);
+        
+        // Create event in Firebase
+        createEventInFirebase();
+      }
+      
+      // Show success message with event code
+      showEventCodeModal(currentEventCode);
+    }
+    
+    function createEventInFirebase() {
+      if (!currentEventCode) return;
+      
+      const eventName = document.getElementById('eventName').value || 'Unnamed Event';
+      const eventDate = document.getElementById('eventDate').value || '';
+      const eventLocation = document.getElementById('eventLocation').value || '';
+      const distanceFeet = parseInt(document.getElementById('distanceFeet').value) || 65;
+      const distanceInches = parseInt(document.getElementById('distanceInches').value) || 6;
+      const totalDistance = distanceFeet + (distanceInches / 12);
+      
+      // Create event record in Firebase
+      database.ref(`events/${currentEventCode}/eventInfo`).set({
+        name: eventName,
+        date: eventDate,
+        location: eventLocation,
+        distanceFeet: distanceFeet,
+        distanceInches: distanceInches,
+        totalDistance: totalDistance,
+        created: Date.now()
+      })
+      .then(() => {
+        console.log('Event created in Firebase:', currentEventCode);
+      })
+      .catch((error) => {
+        console.error('Error creating event in Firebase:', error);
+      });
+    }
+    
+    function generateEventCode() {
+      // Generate 6-character alphanumeric code
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed ambiguous chars (0,O,1,I)
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+    
+    async function showEventCodeModal(code) {
+      const message = `Event Code: ${code}\n\nShare this code with participants to view live results at:\nwww.impulse-g4.com/live\n\nParticipants can view results from anywhere with this code!`;
+      await showInfoModal('Event Saved!', message);
     }
 
     async function startNewEvent() {
@@ -1949,6 +2103,10 @@
       
       // Clear storage
       localStorage.removeItem('g4RaceData');
+      localStorage.removeItem('currentEventCode');
+      
+      // Clear current event code
+      currentEventCode = null;
       
       showInfoModal('New Event Started', 'All data has been cleared. You can now set up your new event!');
     }
@@ -2002,6 +2160,11 @@
         renderCars(division);
         renderResults();
         saveToStorage();
+        
+        // Sync DQ status to Firebase if car has time trial result
+        if (car.timeTrialResult && currentEventCode) {
+          syncResultToFirebase(car);
+        }
       }
     }
 
@@ -2083,20 +2246,40 @@
       lane1Select.value = currentLane1;
       lane2Select.value = currentLane2;
       
-      // Update BLE warning
+      // Update BLE warning and race status
       updateBLEWarning();
+      updateRaceStatus();
     }
 
     function updateBLEWarning() {
       const warning = document.getElementById('timeTrialBLEWarning');
-      const readyInfo = document.getElementById('timeTrialReadyInfo');
       
       if (!device || !device.gatt.connected) {
         warning.classList.remove('hidden');
-        if (readyInfo) readyInfo.classList.add('hidden');
       } else {
         warning.classList.add('hidden');
-        if (readyInfo) readyInfo.classList.remove('hidden');
+      }
+    }
+
+    function updateRaceStatus() {
+      const lane1 = document.getElementById('lane1Select').value;
+      const lane2 = document.getElementById('lane2Select').value;
+      const statusDiv = document.getElementById('raceStatus');
+
+      // Check if same car in both lanes
+      if (lane1 && lane2 && lane1 === lane2) {
+        statusDiv.className = 'race-status waiting';
+        statusDiv.innerHTML = '⚠️ Same car cannot be in both lanes!';
+        return;
+      }
+
+      // Check if both lanes selected
+      if (lane1 && lane2) {
+        statusDiv.className = 'race-status ready';
+        statusDiv.innerHTML = '🏁 Ready To Race!';
+      } else {
+        statusDiv.className = 'race-status waiting';
+        statusDiv.innerHTML = '⏳ Select cars for each lane';
       }
     }
 
