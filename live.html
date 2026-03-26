@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>G4 Racing - Live Results</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0f1420;
+      --card: #121827;
+      --edge: #1e2939;
+      --edge-light: #2a3d5a;
+      --text: #e8f0ff;
+      --muted: #94a7c9;
+      --accent: #FF6B35;
+      --ok: #10b981;
+      --danger: #ef4444;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 5px;
+      background: linear-gradient(135deg, #FF6B35 0%, #E63946 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+    }
+
+    .event-info {
+      display: inline-block;
+      background: var(--card);
+      border: 1px solid var(--edge);
+      border-radius: 8px;
+      padding: 8px 16px;
+      margin-top: 10px;
+    }
+
+    .event-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 5px;
+    }
+
+    .event-distance {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .pitsco-logo {
+      text-align: center;
+      margin-bottom: 25px;
+      padding: 15px;
+      background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(230, 57, 70, 0.1) 100%);
+      border-radius: 8px;
+    }
+
+    .pitsco-logo a {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .pitsco-logo a:hover {
+      color: var(--accent);
+    }
+
+    .pitsco-icon {
+      font-size: 1.2rem;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--card);
+      border-radius: 20px;
+      font-size: 0.85rem;
+      margin-top: 10px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--edge);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .code-entry {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .input {
+      background: var(--bg);
+      border: 1px solid var(--edge);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      width: 100%;
+      max-width: 300px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #FF6B35 0%, #E63946 100%);
+      color: white;
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(255, 107, 53, 0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-select {
+      background: var(--bg);
+      border: 1px solid var(--edge);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .search-input {
+      background: var(--bg);
+      border: 1px solid var(--edge);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th {
+      background: var(--edge);
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    th.sortable:hover {
+      background: var(--edge-light);
+    }
+
+    th.sortable::after {
+      content: ' ⇅';
+      opacity: 0.3;
+      font-size: 0.7rem;
+    }
+
+    th.sortable.asc::after {
+      content: ' ▲';
+      opacity: 1;
+    }
+
+    th.sortable.desc::after {
+      content: ' ▼';
+      opacity: 1;
+    }
+
+    td {
+      padding: 12px;
+      border-top: 1px solid var(--edge);
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 107, 53, 0.05);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--ok);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .last-update {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 10px;
+      }
+
+      .header h1 {
+        font-size: 1.5rem;
+      }
+
+      th, td {
+        padding: 8px;
+        font-size: 0.85rem;
+      }
+
+      .controls {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .filter-select, .search-input {
+        width: 100%;
+      }
+    }
+  </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Pitsco Branding -->
+    <div class="pitsco-logo">
+      <a href="https://www.pitsco.com" target="_blank">
+        <span class="pitsco-icon">🏁</span>
+        <span>Powered by PITSCO Education</span>
+      </a>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+      <h1>G4 Racing - Live Results</h1>
+      <p class="subtitle">View real-time race results</p>
+      <div id="eventNameDisplay" class="event-info hidden">
+        <div class="event-name" id="eventNameText">Loading...</div>
+        <div class="event-distance" id="eventDateText"></div>
+        <div class="event-distance" id="eventLocationText"></div>
+        <div class="event-distance" id="eventDistanceText"></div>
+      </div>
+    </div>
+
+    <!-- Code Entry Screen -->
+    <div id="codeEntry" class="card">
+      <div class="code-entry">
+        <h2 style="margin-bottom: 10px;">Enter Event Code</h2>
+        <p style="color: var(--muted); margin-bottom: 10px;">Ask event organizer for the 6-character code</p>
+        <input 
+          type="text" 
+          id="eventCodeInput" 
+          class="input" 
+          placeholder="ABC123"
+          maxlength="6"
+          autocomplete="off"
+        >
+        <button id="submitCodeBtn" class="btn" onclick="submitCode()">View Results</button>
+        <div id="codeError" class="error hidden"></div>
+      </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="resultsView" class="hidden">
+      <!-- Status -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div class="status">
+          <div class="status-dot"></div>
+          <span>Live • Auto-refreshing</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="card">
+        <div class="controls">
+          <select id="filterSelect" class="filter-select" onchange="filterResults()">
+            <option value="all">Show All</option>
+            <option value="ms">Middle School Only</option>
+            <option value="hs">High School Only</option>
+            <option value="qualified">Qualified Only</option>
+            <option value="dq">DQ'd Only</option>
+          </select>
+          <input 
+            type="text" 
+            id="searchInput" 
+            class="search-input" 
+            placeholder="Search by car number..."
+            oninput="filterResults()"
+          >
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      <div class="card">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortResults('number')">Car #</th>
+              <th id="driverHeader" class="sortable" onclick="sortResults('driver')">Driver</th>
+              <th class="sortable" onclick="sortResults('division')">Division</th>
+              <th class="sortable" onclick="sortResults('finish')">Finish (s)</th>
+              <th class="sortable" onclick="sortResults('reaction')">Reaction (s)</th>
+              <th class="sortable" onclick="sortResults('speed')">Speed (mph)</th>
+              <th style="text-align: center;">DQ</th>
+            </tr>
+          </thead>
+          <tbody id="resultsTableBody">
+            <tr>
+              <td colspan="7" class="empty-state">
+                Waiting for race results...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="last-update" id="lastUpdate">Last updated: --</div>
+      </div>
+
+      <!-- Back Button -->
+      <div style="text-align: center;">
+        <button class="btn" onclick="backToCodeEntry()" style="background: var(--edge);">Enter Different Code</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDxm1xWqFRvrix5YoQpfrkXMnvGn_FxsyI",
+      authDomain: "impulse-g4-live.firebaseapp.com",
+      databaseURL: "https://impulse-g4-live-default-rtdb.firebaseio.com",
+      projectId: "impulse-g4-live",
+      storageBucket: "impulse-g4-live.firebasestorage.app",
+      messagingSenderId: "940597831255",
+      appId: "1:940597831255:web:ec384f94b9c7f9efa76512"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    let currentEventCode = null;
+    let allResults = [];
+    let currentFilter = 'all';
+    let currentSort = 'finish'; // Default sort by finish time
+    let currentSortDir = 'asc'; // asc or desc
+    let databaseRef = null;
+
+    // Check URL for event code
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('event');
+      if (code) {
+        document.getElementById('eventCodeInput').value = code;
+        submitCode();
+      }
+    });
+
+    // Submit event code
+    function submitCode() {
+      const input = document.getElementById('eventCodeInput');
+      const code = input.value.trim().toUpperCase();
+      const error = document.getElementById('codeError');
+
+      if (!code || code.length !== 6) {
+        error.textContent = 'Please enter a valid 6-character code';
+        error.classList.remove('hidden');
+        return;
+      }
+
+      error.classList.add('hidden');
+      currentEventCode = code;
+
+      // Check if event exists and load event info
+      database.ref(`events/${code}`).once('value')
+        .then((snapshot) => {
+          if (!snapshot.exists()) {
+            error.textContent = 'Event code not found. Please check the code and try again.';
+            error.classList.add('hidden');
+            error.classList.remove('hidden');
+            return;
+          }
+
+          const eventData = snapshot.val();
+          console.log('Event data loaded:', eventData);
+          
+          // Display event name, date, and distance if available
+          if (eventData.eventInfo) {
+            const info = eventData.eventInfo;
+            console.log('Event info:', info);
+            
+            // Event name
+            if (info.name) {
+              document.getElementById('eventNameText').textContent = info.name;
+            }
+            
+            // Event date
+            if (info.date) {
+              const dateObj = new Date(info.date);
+              const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              });
+              document.getElementById('eventDateText').textContent = formattedDate;
+            }
+            
+            // Event location
+            if (info.location) {
+              document.getElementById('eventLocationText').textContent = info.location;
+            }
+            
+            // Race distance
+            if (info.totalDistance || (info.distanceFeet && info.distanceInches !== undefined)) {
+              const distance = info.totalDistance || (info.distanceFeet + (info.distanceInches / 12));
+              document.getElementById('eventDistanceText').textContent = `Race Distance: ${distance.toFixed(2)} feet`;
+              console.log('Distance set to:', distance.toFixed(2));
+            } else {
+              console.log('No distance data found. distanceFeet:', info.distanceFeet, 'distanceInches:', info.distanceInches, 'totalDistance:', info.totalDistance);
+            }
+            
+            document.getElementById('eventNameDisplay').classList.remove('hidden');
+          } else {
+            console.log('No eventInfo found in event data');
+          }
+
+          // Event exists, show results
+          showResults();
+          listenForResults();
+        })
+        .catch((err) => {
+          console.error('Firebase error:', err);
+          error.textContent = 'Error connecting to event. Please try again.';
+          error.classList.remove('hidden');
+        });
+    }
+
+    // Show results view
+    function showResults() {
+      document.getElementById('codeEntry').classList.add('hidden');
+      document.getElementById('resultsView').classList.remove('hidden');
+    }
+
+    // Back to code entry
+    function backToCodeEntry() {
+      // Unsubscribe from Firebase
+      if (databaseRef) {
+        databaseRef.off();
+      }
+
+      currentEventCode = null;
+      allResults = [];
+      document.getElementById('codeEntry').classList.remove('hidden');
+      document.getElementById('resultsView').classList.add('hidden');
+      document.getElementById('eventCodeInput').value = '';
+    }
+
+    // Listen for results from Firebase
+    function listenForResults() {
+      if (!currentEventCode) return;
+
+      console.log('Listening for results at:', `events/${currentEventCode}/timeTrials`);
+      databaseRef = database.ref(`events/${currentEventCode}/timeTrials`);
+      
+      databaseRef.on('value', (snapshot) => {
+        console.log('Firebase data received:', snapshot.val());
+        const data = snapshot.val();
+        
+        if (!data) {
+          console.log('No data found');
+          allResults = [];
+          renderResults();
+          updateLastUpdate();
+          return;
+        }
+
+        // Flatten data structure
+        allResults = [];
+        ['MS', 'HS'].forEach(division => {
+          if (data[division]) {
+            console.log(`Found ${division} results:`, Object.keys(data[division]).length);
+            Object.values(data[division]).forEach(result => {
+              allResults.push(result);
+            });
+          }
+        });
+
+        console.log('Total results:', allResults.length);
+
+        // Check if driver names are hidden
+        const anyDriverName = allResults.some(r => r.driver && r.driver.trim() !== '');
+        if (!anyDriverName) {
+          // Hide driver column if all names are empty
+          document.getElementById('driverHeader').style.display = 'none';
+          document.querySelectorAll('.driver-cell').forEach(cell => {
+            cell.style.display = 'none';
+          });
+        } else {
+          document.getElementById('driverHeader').style.display = 'table-cell';
+        }
+
+        renderResults();
+        updateLastUpdate();
+      });
+    }
+
+    // Filter results
+    function filterResults() {
+      currentFilter = document.getElementById('filterSelect').value;
+      renderResults();
+    }
+
+    // Sort results
+    function sortResults(column) {
+      // Toggle direction if clicking same column
+      if (currentSort === column) {
+        currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentSort = column;
+        currentSortDir = 'asc';
+      }
+
+      // Update header classes
+      document.querySelectorAll('th.sortable').forEach(th => {
+        th.classList.remove('asc', 'desc');
+      });
+      
+      const activeHeader = Array.from(document.querySelectorAll('th.sortable')).find(th => 
+        th.textContent.toLowerCase().includes(column)
+      );
+      if (activeHeader) {
+        activeHeader.classList.add(currentSortDir);
+      }
+
+      renderResults();
+    }
+
+    // Render results table
+    function renderResults() {
+      const tbody = document.getElementById('resultsTableBody');
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+      // Filter
+      let filtered = [...allResults];
+
+      if (currentFilter === 'ms') {
+        filtered = filtered.filter(r => r.division === 'MS');
+      } else if (currentFilter === 'hs') {
+        filtered = filtered.filter(r => r.division === 'HS');
+      } else if (currentFilter === 'qualified') {
+        filtered = filtered.filter(r => !r.dq);
+      } else if (currentFilter === 'dq') {
+        filtered = filtered.filter(r => r.dq);
+      }
+
+      // Search
+      if (searchTerm) {
+        filtered = filtered.filter(r => 
+          r.number.toString().includes(searchTerm) ||
+          (r.driver && r.driver.toLowerCase().includes(searchTerm))
+        );
+      }
+
+      // Sort
+      filtered.sort((a, b) => {
+        let aVal, bVal;
+
+        // Handle DNF/DQ for sorting
+        if (currentSort === 'finish' || currentSort === 'reaction' || currentSort === 'speed') {
+          if (a.dnf && !b.dnf) return 1;
+          if (!a.dnf && b.dnf) return -1;
+          if (a.dnf && b.dnf) return 0;
+        }
+
+        switch (currentSort) {
+          case 'number':
+            aVal = parseInt(a.number) || 0;
+            bVal = parseInt(b.number) || 0;
+            break;
+          case 'driver':
+            aVal = (a.driver || '').toLowerCase();
+            bVal = (b.driver || '').toLowerCase();
+            break;
+          case 'division':
+            aVal = a.division || '';
+            bVal = b.division || '';
+            break;
+          case 'finish':
+            aVal = a.finish || Infinity;
+            bVal = b.finish || Infinity;
+            break;
+          case 'reaction':
+            aVal = a.reaction || Infinity;
+            bVal = b.reaction || Infinity;
+            break;
+          case 'speed':
+            aVal = a.speed || 0;
+            bVal = b.speed || 0;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aVal < bVal) return currentSortDir === 'asc' ? -1 : 1;
+        if (aVal > bVal) return currentSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      // Render
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No results found</td></tr>';
+        return;
+      }
+
+      const hideDriverColumn = !allResults.some(r => r.driver && r.driver.trim() !== '');
+
+      tbody.innerHTML = filtered.map(result => {
+        const driverCell = hideDriverColumn ? '' : `<td class="driver-cell">${result.driver || '--'}</td>`;
+        const speed = result.speed ? result.speed.toFixed(2) : '--';
+        
+        return `
+          <tr>
+            <td><strong>${result.number}</strong></td>
+            ${driverCell}
+            <td><span class="badge ${result.division === 'MS' ? 'badge-success' : 'badge-warning'}">${result.division}</span></td>
+            <td>${result.dnf ? 'DNF' : result.finish ? result.finish.toFixed(3) : '--'}</td>
+            <td>${result.dnf ? '---' : result.reaction ? result.reaction.toFixed(3) : '--'}</td>
+            <td>${speed}</td>
+            <td style="text-align: center;">${result.dq ? '✓' : ''}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Update last update timestamp
+    function updateLastUpdate() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString();
+      document.getElementById('lastUpdate').textContent = `Last updated: ${timeStr}`;
+    }
+
+    // Allow Enter key to submit code
+    document.getElementById('eventCodeInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitCode();
+      }
+    });
+  </script>
+</body>
+</html>
